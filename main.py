@@ -7,43 +7,25 @@ ADMIN_ID = 1260436370
 
 bot = telebot.TeleBot(API_TOKEN)
 
-# --- MA'LUMOTLAR BAZASI (SQLite) ---
+# --- BAZA ---
 conn = sqlite3.connect('movies.db', check_same_thread=False)
 cursor = conn.cursor()
 
-# Kinolar jadvali
-cursor.execute('''
-CREATE TABLE IF NOT EXISTS movies (
-    code TEXT PRIMARY KEY,
-    name TEXT,
-    link TEXT
-)
-''')
-
-# Foydalanuvchilar jadvali
-cursor.execute('''
-CREATE TABLE IF NOT EXISTS users (
-    user_id INTEGER PRIMARY KEY
-)
-''')
-
-# Majburiy obuna kanallari jadvali
-cursor.execute('''
-CREATE TABLE IF NOT EXISTS channels (
-    channel_id TEXT PRIMARY KEY,
-    invite_link TEXT
-)
-''')
-
-# Asosiy chastniy kanalingizni bazaga birinchi marta qo'shish
-cursor.execute("INSERT OR IGNORE INTO channels (channel_id, invite_link) VALUES (?, ?)", 
-               ("-1004383556829", "https://t.me/+KUfXmD3NAHs4Zjgy"))
+cursor.execute('''CREATE TABLE IF NOT EXISTS movies (code TEXT PRIMARY KEY, name TEXT, link TEXT)''')
+cursor.execute('''CREATE TABLE IF NOT EXISTS users (user_id INTEGER PRIMARY KEY)''')
+cursor.execute('''CREATE TABLE IF NOT EXISTS channels (channel_id TEXT PRIMARY KEY, invite_link TEXT)''')
 conn.commit()
+
+# Boshlang'ich kanalingizni xatosiz tekshirib qo'shish
+cursor.execute("SELECT * FROM channels WHERE channel_id = ?", ("-1004383556829",))
+if not cursor.fetchone():
+    cursor.execute("INSERT INTO channels (channel_id, invite_link) VALUES (?, ?)", 
+                   ("-1004383556829", "https://t.me/+KUfXmD3NAHs4Zjgy"))
+    conn.commit()
 
 user_states = {}
 admin_data = {}
 
-# Obunani tekshirish funksiyasi
 def check_sub(user_id):
     cursor.execute("SELECT channel_id FROM channels")
     rows = cursor.fetchall()
@@ -57,7 +39,6 @@ def check_sub(user_id):
             return False
     return True
 
-# Obuna bo'lish tugmalari (inline)
 def sub_keyboard():
     markup = types.InlineKeyboardMarkup()
     cursor.execute("SELECT invite_link FROM channels")
@@ -68,7 +49,6 @@ def sub_keyboard():
     markup.add(types.InlineKeyboardButton("✅ Tekshirish", callback_data="check_sub"))
     return markup
 
-# Asosiy menyu va Admin tugmalari
 def main_keyboard(user_id):
     markup = types.ReplyKeyboardMarkup(resize_keyboard=True)
     markup.row("🔍 Kino qidirish", "📊 Statistika")
@@ -110,7 +90,6 @@ def handle_all(message):
     uid = message.from_user.id
     text = message.text
 
-    # Admin bo'lmagan foydalanuvchilar obunasi tekshiriladi
     if uid != ADMIN_ID and not check_sub(uid):
         bot.send_message(
             message.chat.id, 
@@ -120,7 +99,6 @@ def handle_all(message):
         )
         return
 
-    # --- ADMIN TUGMALARI ISHLASHI ---
     if uid == ADMIN_ID:
         if text == "➕ Kino qo'shish":
             user_states[uid] = "WAITING_CODE"
@@ -156,7 +134,6 @@ def handle_all(message):
 
     state = user_states.get(uid)
 
-    # --- ADMIN QADAM-BA-QADAM JARAYONLARI ---
     if state == "WAITING_CODE":
         admin_data[uid] = {'code': text}
         user_states[uid] = "WAITING_NAME"
@@ -226,7 +203,6 @@ def handle_all(message):
         bot.send_message(message.chat.id, f"✅ Reklama xabari {count} ta foydalanuvchiga muvaffaqiyatli yetkazildi!")
         return
 
-    # --- ODDIY TUGMALAR ---
     if text == "📊 Statistika":
         cursor.execute("SELECT COUNT(*) FROM users")
         user_count = cursor.fetchone()[0]
@@ -241,7 +217,6 @@ def handle_all(message):
         bot.send_message(message.chat.id, "Kino kodini yuboring (masalan: 101, 102...):")
         return
 
-    # Kino kodi qidirilganda
     cursor.execute("SELECT name, link FROM movies WHERE code = ?", (text,))
     movie = cursor.fetchone()
 
@@ -253,4 +228,3 @@ def handle_all(message):
         bot.send_message(message.chat.id, f"Afsuski, `{text}` kodli kino topilmadi.")
 
 bot.infinity_polling()
-
