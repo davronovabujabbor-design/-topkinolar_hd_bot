@@ -7,7 +7,7 @@ ADMIN_ID = 1260436370
 
 # 📢 MAJBURITY OBUNA SOZLAMALARI:
 CHANNELS = [-1004383556829]  
-CHANNEL_LINK = "https://t.me/+Na73XlIi7fo3ZWMy"
+CHANNEL_LINK = "https://t.me/+KUfXmD3NAHs4Zjgy"
 
 bot = telebot.TeleBot(API_TOKEN)
 
