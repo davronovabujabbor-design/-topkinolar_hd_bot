@@ -35,7 +35,7 @@ CREATE TABLE IF NOT EXISTS channels (
 )
 ''')
 
-# Boshlang'ich asosiy kanalingizni bazaga qo'shish (agar yo'q bo'lsa)
+# Asosiy chastniy kanalingizni bazaga birinchi marta qo'shish
 cursor.execute("INSERT OR IGNORE INTO channels (channel_id, invite_link) VALUES (?, ?)", 
                ("-1004383556829", "https://t.me/+KUfXmD3NAHs4Zjgy"))
 conn.commit()
@@ -57,7 +57,7 @@ def check_sub(user_id):
             return False
     return True
 
-# Obuna bo'lish tugmalari
+# Obuna bo'lish tugmalari (inline)
 def sub_keyboard():
     markup = types.InlineKeyboardMarkup()
     cursor.execute("SELECT invite_link FROM channels")
@@ -68,6 +68,7 @@ def sub_keyboard():
     markup.add(types.InlineKeyboardButton("✅ Tekshirish", callback_data="check_sub"))
     return markup
 
+# Asosiy menyu va Admin tugmalari
 def main_keyboard(user_id):
     markup = types.ReplyKeyboardMarkup(resize_keyboard=True)
     markup.row("🔍 Kino qidirish", "📊 Statistika")
@@ -109,7 +110,7 @@ def handle_all(message):
     uid = message.from_user.id
     text = message.text
 
-    # Admin bo'lmaganlar uchun obunani tekshirish
+    # Admin bo'lmagan foydalanuvchilar obunasi tekshiriladi
     if uid != ADMIN_ID and not check_sub(uid):
         bot.send_message(
             message.chat.id, 
@@ -119,7 +120,7 @@ def handle_all(message):
         )
         return
 
-    # --- ADMIN TUGMALARI ---
+    # --- ADMIN TUGMALARI ISHLASHI ---
     if uid == ADMIN_ID:
         if text == "➕ Kino qo'shish":
             user_states[uid] = "WAITING_CODE"
@@ -155,7 +156,7 @@ def handle_all(message):
 
     state = user_states.get(uid)
 
-    # --- ADMIN QADAM-BA-QADAM AMALLARI ---
+    # --- ADMIN QADAM-BA-QADAM JARAYONLARI ---
     if state == "WAITING_CODE":
         admin_data[uid] = {'code': text}
         user_states[uid] = "WAITING_NAME"
@@ -240,7 +241,7 @@ def handle_all(message):
         bot.send_message(message.chat.id, "Kino kodini yuboring (masalan: 101, 102...):")
         return
 
-    # Kino kodi yuborilganda
+    # Kino kodi qidirilganda
     cursor.execute("SELECT name, link FROM movies WHERE code = ?", (text,))
     movie = cursor.fetchone()
 
@@ -252,3 +253,4 @@ def handle_all(message):
         bot.send_message(message.chat.id, f"Afsuski, `{text}` kodli kino topilmadi.")
 
 bot.infinity_polling()
+
