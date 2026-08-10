@@ -5,11 +5,9 @@ import sqlite3
 API_TOKEN = '8696461606:AAFECW9WAc63ubvVhM93sOTWUnW45owkngU'
 ADMIN_ID = 1260436370
 
-# 📢 MAJBURITY OBUNA SOZLAMALARI
-# Kanalingizning username'ini (masalan: "@topkinolar_hd_uz") yoki ID raqamini kiriting:
-CHANNELS = ["@topkinolar_hd_uz"]  
-# Kanalingizga kirish havolasi:
-CHANNEL_LINK = "https://t.me/topkinolar_hd_uz" 
+# 📢 MAJBURITY OBUNA SOZLAMALARI:
+CHANNELS = [-1004383556829]  
+CHANNEL_LINK = "https://t.me/+Na73XlIi7fo3ZWMy"
 
 bot = telebot.TeleBot(API_TOKEN)
 
@@ -41,10 +39,10 @@ def check_sub(user_id):
             if member.status in ['left', 'kicked']:
                 return False
         except Exception:
-            pass
+            return False
     return True
 
-# Obuna bo'lish tugmachalari
+# Obuna bo'lish tugmalari
 def sub_keyboard():
     markup = types.InlineKeyboardMarkup()
     btn1 = types.InlineKeyboardButton("📢 Kanalga obuna bo'lish", url=CHANNEL_LINK)
