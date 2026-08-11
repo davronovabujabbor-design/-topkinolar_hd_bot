@@ -3,15 +3,14 @@ import logging
 import os
 import sqlite3
 from aiohttp import web
-from aiogram import Bot, Dispatcher, F, types
-from aiogram.filters import Command
+from aiogram import Bot, Dispatcher, executor, types
 from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton, ReplyKeyboardMarkup, KeyboardButton
 
 API_TOKEN = '8696461606:AAFECW9WAc63ubvVhM93sOTWUnW45owkngU'
 ADMIN_ID = 1260436370
 
 bot = Bot(token=API_TOKEN)
-dp = Dispatcher()
+dp = Dispatcher(bot)
 
 # --- BAZA SOZLAMALARI ---
 def init_db():
@@ -57,24 +56,23 @@ def sub_keyboard():
     rows = cursor.fetchall()
     conn.close()
 
-    buttons = []
+    markup = InlineKeyboardMarkup(row_width=1)
     for idx, row in enumerate(rows, 1):
-        buttons.append([InlineKeyboardButton(text=f"📢 {idx}-kanalga obuna bo'lish", url=row[0])])
-    buttons.append([InlineKeyboardButton(text="✅ Tekshirish", callback_data="check_sub")])
-    return InlineKeyboardMarkup(inline_keyboard=buttons)
+        markup.add(InlineKeyboardButton(text=f"📢 {idx}-kanalga obuna bo'lish", url=row[0]))
+    markup.add(InlineKeyboardButton(text="✅ Tekshirish", callback_data="check_sub"))
+    return markup
 
 def main_keyboard(user_id: int):
-    kb = [
-        [KeyboardButton(text="🔍 Kino qidirish"), KeyboardButton(text="📊 Statistika")]
-    ]
+    markup = ReplyKeyboardMarkup(resize_keyboard=True)
+    markup.row("🔍 Kino qidirish", "📊 Statistika")
     if user_id == ADMIN_ID:
-        kb.append([KeyboardButton(text="➕ Kino qo'shish"), KeyboardButton(text="❌ Kino o'chirish")])
-        kb.append([KeyboardButton(text="📢 Kanal qo'shish"), KeyboardButton(text="🗑 Kanal o'chirish")])
-        kb.append([KeyboardButton(text="📜 Kanallar ro'yxati"), KeyboardButton(text="📤 Rassilka (Reklama)")])
-    return ReplyKeyboardMarkup(keyboard=kb, resize_keyboard=True)
+        markup.row("➕ Kino qo'shish", "❌ Kino o'chirish")
+        markup.row("📢 Kanal qo'shish", "🗑 Kanal o'chirish")
+        markup.row("📜 Kanallar ro'yxati", "📤 Rassilka (Reklama)")
+    return markup
 
 # --- KANAL ZAYAVKALARINI INSTANT TASDIQLASH ---
-@dp.chat_join_request()
+@dp.chat_join_request_handler()
 async def auto_approve(chat_join_request: types.ChatJoinRequest):
     try:
         await chat_join_request.approve()
@@ -87,7 +85,7 @@ async def auto_approve(chat_join_request: types.ChatJoinRequest):
         logging.error(f"Zayavka xatosi: {e}")
 
 # --- HANDLERLAR ---
-@dp.message(Command("start"))
+@dp.message_handler(commands=['start'])
 async def send_welcome(message: types.Message):
     uid = message.from_user.id
     conn = sqlite3.connect('movies.db')
@@ -104,7 +102,7 @@ async def send_welcome(message: types.Message):
     await message.answer("Salom! Topkinolar HD botiga xush kelibsiz!\n\nKino kodini yuboring:", 
                          reply_markup=main_keyboard(uid))
 
-@dp.callback_query(F.data == "check_sub")
+@dp.callback_query_handler(lambda call: call.data == "check_sub")
 async def callback_check(call: types.CallbackQuery):
     uid = call.from_user.id
     if await check_sub(uid):
@@ -117,7 +115,7 @@ async def callback_check(call: types.CallbackQuery):
     else:
         await call.answer("❌ Siz hali barcha kanallarga obuna bo'lmadingiz!", show_alert=True)
 
-@dp.message()
+@dp.message_handler(content_types=types.ContentType.ANY)
 async def handle_all(message: types.Message):
     uid = message.from_user.id
     text = message.text
@@ -127,7 +125,6 @@ async def handle_all(message: types.Message):
                              parse_mode="Markdown", reply_markup=sub_keyboard())
         return
 
-    # Admin knopkalari
     if uid == ADMIN_ID:
         if text == "➕ Kino qo'shish":
             user_states[uid] = "WAITING_CODE"
@@ -245,7 +242,7 @@ async def handle_all(message: types.Message):
             try:
                 await message.copy_to(chat_id=u[0])
                 count += 1
-                await asyncio.sleep(0.05) # Spam-blok tushmasligi uchun
+                await asyncio.sleep(0.05)
             except Exception:
                 pass
         await message.answer(f"✅ Reklama xabari {count} ta foydalanuvchiga yetkazildi!")
@@ -292,10 +289,9 @@ async def start_web_server():
     site = web.TCPSite(runner, '0.0.0.0', port)
     await site.start()
 
-async def main():
-    await start_web_server()
-    await dp.start_polling(bot)
+async def on_startup(dp):
+    asyncio.create_task(start_web_server())
 
 if __name__ == '__main__':
     logging.basicConfig(level=logging.INFO)
-    asyncio.run(main())
+    executor.start_polling(dp, skip_updates=True, on_startup=on_startup)
