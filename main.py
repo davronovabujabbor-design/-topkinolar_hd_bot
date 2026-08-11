@@ -1,7 +1,26 @@
 import telebot
 from telebot import types
 import sqlite3
+import threading
+import os
+from http.server import HTTPServer, BaseHTTPRequestHandler
 
+# --- RENDER SERVERI BOTNI O'CHIRIB QO'YMASLIGI UCHUN PORT SOZLAMASI ---
+class SimpleHTTPRequestHandler(BaseHTTPRequestHandler):
+    def do_GET(self):
+        self.send_response(200)
+        self.end_headers()
+        self.wfile.write(b"Bot ishlayapti!")
+
+def run_http_server():
+    port = int(os.environ.get("PORT", 8080))
+    server = HTTPServer(('0.0.0.0', port), SimpleHTTPRequestHandler)
+    server.serve_forever()
+
+# Server portini alohida potokda ishga tushirish
+threading.Thread(target=run_http_server, daemon=True).start()
+
+# --- BOT SOZLAMALARI ---
 API_TOKEN = '8696461606:AAFECW9WAc63ubvVhM93sOTWUnW45owkngU'
 ADMIN_ID = 1260436370
 
@@ -16,7 +35,7 @@ cursor.execute('''CREATE TABLE IF NOT EXISTS users (user_id INTEGER PRIMARY KEY)
 cursor.execute('''CREATE TABLE IF NOT EXISTS channels (channel_id TEXT PRIMARY KEY, invite_link TEXT)''')
 conn.commit()
 
-# Boshlang'ich kanalingizni xatosiz tekshirib qo'shish
+# Boshlang'ich kanalingizni bazaga qo'shish
 cursor.execute("SELECT * FROM channels WHERE channel_id = ?", ("-1004383556829",))
 if not cursor.fetchone():
     cursor.execute("INSERT INTO channels (channel_id, invite_link) VALUES (?, ?)", 
