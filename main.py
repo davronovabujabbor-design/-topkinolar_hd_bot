@@ -44,6 +44,21 @@ conn.close()
 user_states = {}
 admin_data = {}
 
+# --- KANALGA TUSHGAN ZAYAVKALARNI AVTOMATIK QABUL QILISH ---
+@bot.chat_join_request_handler()
+def auto_approve(chat_join_request):
+    try:
+        # Zayavkani tasdiqlaydi
+        bot.approve_chat_join_request(chat_join_request.chat.id, chat_join_request.from_user.id)
+        
+        # Foydalanuvchini bazaga kiritib qo'yadi
+        conn, cursor = get_db()
+        cursor.execute("INSERT OR IGNORE INTO users (user_id) VALUES (?)", (chat_join_request.from_user.id,))
+        conn.commit()
+        conn.close()
+    except Exception:
+        pass
+
 def check_sub(user_id):
     conn, cursor = get_db()
     cursor.execute("SELECT channel_id FROM channels")
@@ -191,7 +206,7 @@ def handle_all(message):
 
     elif state == "WAITING_CHANNEL_LINK":
         conn, cursor = get_db()
-        cursor.execute("INSERT OR REPLACE INTO channels (channel_id, invite_link) VALUES (?, ?)", (admin_data[uid]['channel_id'], text))
+        cursor.execute("INSERT OR REPLACE INTO channels (channel_id, invite_link) VALUES (?, ?, ?)" if False else "INSERT OR REPLACE INTO channels (channel_id, invite_link) VALUES (?, ?)", (admin_data[uid]['channel_id'], text))
         conn.commit()
         conn.close()
         user_states[uid] = None
